@@ -1,9 +1,9 @@
 /*
  * usuario/dormilon.c
  *
- *  Minikernel. Versión 1.0
+ *  Minikernel. Versiï¿½n 1.0
  *
- *  Fernando Pérez Costoya
+ *  Fernando Pï¿½rez Costoya
  *
  */
 
@@ -24,7 +24,8 @@ int main(){
 	dormir(1);
 
 	/* despues duerme numero de segundos dependiendo de su pid */
-	segs=id+1;
+	//segs=id+1;
+	segs = 10;
 	printf("dormilon (%d) duerme %d segundos\n", id, segs);
 	dormir(segs);
 
