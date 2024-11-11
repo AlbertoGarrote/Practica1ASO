@@ -369,10 +369,31 @@ int sis_dormir(){
 	fijar_nivel_int(nivel);
 	printf("yepa2\n");
 	return 0;
-
-
-
 }
+
+
+// MUTEX
+
+int sis_crearMutex(){
+	return 0;
+}
+
+int sis_abrirMutex(){
+	return 0;
+}
+
+int sis_lockMutex(){
+	return 0;
+}
+
+int sis_unlockMutex(){
+	return 0;
+}
+
+int sis_cerrarMutex(){
+	return 0;
+}
+
 /*
  *
  * Rutina de inicializaci�n invocada en arranque

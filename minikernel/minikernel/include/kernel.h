@@ -53,6 +53,17 @@ typedef struct{
 	BCP *ultimo;
 } lista_BCPs;
 
+typedef struct Mutex_t{
+	int tipo;
+	char nombre[MAX_NOM_MUT];
+	int esta_bloqueado;
+	int num_bloqueos;
+	int num_procesos_bloqueados;
+	lista_BCPs lista_espera;
+	int id_proc;
+	int esta_creado;
+	int proc_abiertos;
+} Mutex;
 
 /*
  * Variable global que identifica el proceso actual
@@ -95,7 +106,11 @@ int sis_terminar_proceso();
 int sis_escribir();
 int sis_obtener_id();
 int sis_dormir();
-
+int sis_crearMutex();
+int sis_abrirMutex();
+int sis_lockMutex();
+int sis_unlockMutex();
+int sis_cerrarMutex();
 /*
  * Variable global que contiene las rutinas que realizan cada llamada
  */
@@ -103,7 +118,12 @@ servicio tabla_servicios[NSERVICIOS]={	{sis_crear_proceso},
 					{sis_terminar_proceso},
 					{sis_escribir},
 					{sis_obtener_id},
-					{sis_dormir}};
+					{sis_dormir},
+					{sis_crearMutex},
+					{sis_abrirMutex},
+					{sis_lockMutex},
+					{sis_unlockMutex},
+					{sis_cerrarMutex}};
 
 #endif /* _KERNEL_H */
 
