@@ -36,8 +36,10 @@ typedef struct BCP_t {
         contexto_t contexto_regs;	/* copia de regs. de UCP */
         void * pila;			/* dir. inicial de la pila */
 		int segs_restantes;  /* segundos que le quedan al proceso para despertarse*/
-	BCPptr siguiente;		/* puntero a otro BCP */
-	void *info_mem;			/* descriptor del mapa de memoria */
+		BCPptr siguiente;		/* puntero a otro BCP */
+		void *info_mem;			/* descriptor del mapa de memoria */
+		int TICKS_por_rodaja; /* Tick que tiene cada rodaja*/
+
 } BCP;
 
 /*
@@ -85,7 +87,11 @@ lista_BCPs lista_listos= {NULL, NULL};
  * Variable global que representa la cola de procesos dormidos
  */
 lista_BCPs lista_dormidos= {NULL, NULL};
+/*
+ * Variable global que representa procesos que seran expulsados por round robin
+ */
 
+BCP * p_proc_a_expulsar=NULL;
 
 /*
  *

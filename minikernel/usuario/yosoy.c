@@ -13,7 +13,7 @@
 
 #include "servicios.h"
 
-#define TOT_ITER 50	/* ponga las que considere oportuno */
+#define TOT_ITER 10000	/* ponga las que considere oportuno */
 
 int main(){
 	int i, id;

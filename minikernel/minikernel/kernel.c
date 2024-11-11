@@ -207,8 +207,8 @@ static void int_terminal(){
 static void int_reloj(){
 
 	//printk("-> TRATANDO INT. DE RELOJ\n");
+	//TRATAR PROCESOS DORMIDOS (SLEEP)
 	BCPptr aux = lista_dormidos.primero;
-
 	while(aux != NULL)
 	{
 		aux->segs_restantes -= 1;
@@ -221,7 +221,16 @@ static void int_reloj(){
 		}
 		aux = aux2;
 	}
-	fijar_nivel_int(NIVEL_1);
+
+	//COMPROBAR SI EL PROC. HA ACABADO SU ROJADA (ROUND ROBIN)
+	p_proc_actual -> TICKS_por_rodaja--;
+	if(p_proc_actual-> TICKS_por_rodaja <= 0)
+	{
+		p_proc_a_expulsar = p_proc_actual;
+		activar_int_SW();
+	}
+	
+
     //return;
 }
 
@@ -246,7 +255,24 @@ static void tratar_llamsis(){
 static void int_sw(){
 
 	printk("-> TRATANDO INT. SW\n");
+	if (p_proc_a_expulsar == p_proc_actual)
+	{
+		BCP* proceso_A = p_proc_actual;
+		BCP* proceso_B;
+		int nivel = fijar_nivel_int(1);
 
+		eliminar_elem(&lista_listos, proceso_A);
+		insertar_ultimo(&lista_listos, proceso_A);
+
+		p_proc_actual=planificador();
+		proceso_B = p_proc_actual;
+
+		proceso_B->TICKS_por_rodaja = TICKS_POR_RODAJA;
+
+		cambio_contexto(&(proceso_A->contexto_regs), &(proceso_B->contexto_regs));
+
+		fijar_nivel_int(nivel);
+	}
 	return;
 }
 
@@ -280,6 +306,8 @@ static int crear_tarea(char *prog){
 			&(p_proc->contexto_regs));
 		p_proc->id=proc;
 		p_proc->estado=LISTO;
+		p_proc->segs_restantes = 0;
+		p_proc->TICKS_por_rodaja = TICKS_POR_RODAJA;
 
 		/* lo inserta al final de cola de listos */
 		insertar_ultimo(&lista_listos, p_proc);
