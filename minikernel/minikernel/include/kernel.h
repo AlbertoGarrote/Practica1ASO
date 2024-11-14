@@ -40,6 +40,8 @@ typedef struct BCP_t {
 		void *info_mem;			/* descriptor del mapa de memoria */
 		int TICKS_por_rodaja; /* Tick que tiene cada rodaja*/
 
+		int descriptores[NUM_MUT_PROC];
+		int descriptores_abiertos;
 } BCP;
 
 /*
@@ -58,12 +60,11 @@ typedef struct{
 typedef struct Mutex_t{
 	int tipo;
 	char nombre[MAX_NOM_MUT];
-	int esta_bloqueado;
+	int estado;
 	int num_bloqueos;
 	int num_procesos_bloqueados;
 	lista_BCPs lista_espera;
 	int id_proc;
-	int esta_creado;
 	int proc_abiertos;
 } Mutex;
 
@@ -76,22 +77,32 @@ BCP * p_proc_actual=NULL;
 /*
  * Variable global que representa la tabla de procesos
  */
-
 BCP tabla_procs[MAX_PROC];
 
 /*
  * Variable global que representa la cola de procesos listos
  */
 lista_BCPs lista_listos= {NULL, NULL};
+
 /*
  * Variable global que representa la cola de procesos dormidos
  */
 lista_BCPs lista_dormidos= {NULL, NULL};
+
 /*
  * Variable global que representa procesos que seran expulsados por round robin
  */
-
 BCP * p_proc_a_expulsar=NULL;
+
+/*
+ * Variable global que representa los mutex
+ */
+Mutex sis_lista_mutex[NUM_MUT];
+
+/*
+ * Variable global que representa la lista de procesos bloqueados
+ */
+lista_BCPs lista_bloqueados_mutex= {NULL, NULL};
 
 /*
  *

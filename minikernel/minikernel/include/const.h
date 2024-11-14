@@ -72,8 +72,12 @@
 #define NUM_MUT_PROC 4 /* numero maximo de mutex que puede tener
 			  abiertos un proceso */
 #define MAX_NOM_MUT 8 /* longitud maxima de un nombre de mutex */
+
 #define RECURSIVO 1
 #define NO_RECURSIVO 0
+
+#define LIBRE 1
+#define OCUPADO 0
 
 /* constante usada en implementacion de manejador de terminal */
 #define TAM_BUF_TERM 8 /* tama�o del buffer del terminal */

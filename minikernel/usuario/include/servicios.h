@@ -19,9 +19,6 @@
 #ifndef SERVICIOS_H
 #define SERVICIOS_H
 
-#define NO_RECURSIVO 0
-#define RECURSIVO 1
-
 /* Evita el uso del printf de la bilioteca est�ndar */
 #define printf escribirf
 

@@ -14,6 +14,7 @@
  */
 
 #include "kernel.h"	/* Contiene defs. usadas por este modulo */
+#include <string.h> // Para operaciones con strings
 
 /*
  *
@@ -207,6 +208,7 @@ static void int_terminal(){
 static void int_reloj(){
 
 	//printk("-> TRATANDO INT. DE RELOJ\n");
+	
 	//TRATAR PROCESOS DORMIDOS (SLEEP)
 	BCPptr aux = lista_dormidos.primero;
 	while(aux != NULL)
@@ -309,6 +311,13 @@ static int crear_tarea(char *prog){
 		p_proc->segs_restantes = 0;
 		p_proc->TICKS_por_rodaja = TICKS_POR_RODAJA;
 
+		// Para los mutex
+		for(int i = 0; i < NUM_MUT_PROC; i++)
+		{
+			p_proc->descriptores[i] = -1;
+		}
+		p_proc->descriptores_abiertos = 0;
+
 		/* lo inserta al final de cola de listos */
 		insertar_ultimo(&lista_listos, p_proc);
 		error= 0;
@@ -364,6 +373,16 @@ int sis_terminar_proceso(){
 
 	printk("-> FIN PROCESO %d\n", p_proc_actual->id);
 
+	// Buscar mutex que hay que cerrar al terminar un proceso
+	for(int j = 0; j < NUM_MUT_PROC; j++)
+	{
+		// Comprobar que posiciones del array de descriptores tienen un mutex asignado
+		if(p_proc_actual->descriptores[j] != -1)
+		{
+			escribir_registro(1, j);
+			sis_cerrarMutex();
+		}
+	}
 	liberar_proceso();
 
         return 0; /* no deber�a llegar aqui */
@@ -381,7 +400,6 @@ int sis_dormir(){
 
 	//fijar nivel interrupcion
 	int nivel = fijar_nivel_int(NIVEL_3);
-	printf("yepa\n");
 	//asginar tiempo dormido y pasar a lista dormidos
 	BCP *actual = p_proc_actual;
 	actual->segs_restantes = segs*TICK;
@@ -395,7 +413,6 @@ int sis_dormir(){
 
 	//restaurar nivel interrupcion
 	fijar_nivel_int(nivel);
-	printf("yepa2\n");
 	return 0;
 }
 
@@ -403,11 +420,130 @@ int sis_dormir(){
 // MUTEX
 
 int sis_crearMutex(){
-	return 0;
+
+	char* nombre = (char*)leer_registro(1);
+	int tipo = (int) leer_registro(2);
+
+	int nivel = fijar_nivel_int(NIVEL_1);
+
+
+
+
+
+
+	//COMPROBAR QUE EL NOMBRE ES VALIDO
+	if(strlen(nombre) > MAX_NOM_MUT)
+	{
+		printf("Error: el nombre supera la longitud maxima");
+		fijar_nivel_int(nivel);
+		return -1;
+	}
+
+	//COMPROBAR QUE EL NOMBRE ESTA LIBRE
+	for(int i = 0; i < NUM_MUT; i++)
+	{
+		if((strcmp(nombre, sis_lista_mutex[i].nombre)) == 0)
+		{
+			printf("Error: el nombre ya esta en uso");
+			fijar_nivel_int(nivel);
+			return -2;
+		}
+	}
+
+	//COMPROBAR QUE HAY HUECO EN LA LISTA DE DESRIPTORES
+	int descriptor_libre_encontrado = 0;
+	int posicion_descriptor_libre = -1;
+	int i  = 0;
+	if(p_proc_actual->descriptores_abiertos < NUM_MUT_PROC)
+	{
+		
+		while(descriptor_libre_encontrado == 0 && i < NUM_MUT_PROC)
+		{
+			if (p_proc_actual->descriptores[i] == -1)
+			{
+				descriptor_libre_encontrado = 1;
+				posicion_descriptor_libre = i;
+			}
+			else{
+				i++;
+			}
+		}
+	}else
+	{
+		printf("Error: no hay hueco en la lista de descriptores");
+		fijar_nivel_int(nivel);
+		return -3;
+	}
+
+		//COMPROBAR QUE HAY MUTEX LIBRES
+	int mutex_libre_encontrado = 0;
+	int posicion_mutex_libre = -1;
+	int i = 0;
+	while(mutex_libre_encontrado == 0 && i < NUM_MUT)
+	{
+		if (sis_lista_mutex[i].estado == LIBRE)
+		{
+			mutex_libre_encontrado = 1;
+			posicion_mutex_libre = i;
+		}
+		else{
+			i++;
+		}
+	}
+	if (mutex_libre_encontrado != 1)
+	{
+		//SI NO HAY MUTEX LIBRE, BLOQUEA EL PROCESO
+		BCP* proc_a_bloquear = p_proc_actual;
+		proc_a_bloquear->estado = BLOQUEADO;
+		eliminar_primero(&lista_listos);
+		insertar_ultimo(&lista_bloqueados_mutex, proc_a_bloquear);
+		p_proc_actual = planificador();
+		cambio_contexto(&(p_proc_a_expulsar->contexto_regs), &(p_proc_actual->contexto_regs));
+		printf("Error: no hay mutex libres");
+		fijar_nivel_int(nivel);
+		return -4;
+	}
+
+	Mutex * mutex_a_crear = &(sis_lista_mutex[posicion_mutex_libre]);
+	strcpy((mutex_a_crear->nombre),nombre);
+	mutex_a_crear->tipo = tipo;
+	mutex_a_crear->num_bloqueos = 0;
+	mutex_a_crear->estado = OCUPADO;
+	mutex_a_crear->num_procesos_bloqueados  = 0;
+	mutex_a_crear->id_proc = p_proc_actual->id;
+
+	//ABRIMOS EL MUTEX QUE ACABAMOS DE CREAR
+	escribir_registro(1, (long) nombre);
+	sis_abrirMutex();
+
+	fijar_nivel_int(nivel);
+
+	return posicion_descriptor_libre;
 }
 
 int sis_abrirMutex(){
-	return 0;
+	char * nombre  = leer_registro(1);
+
+	//COMPROBAR SI EL NOMBRE EXISTE
+	int i = 0;
+	int mutex_encontrado = 0;
+	while(i < NUM_MUT && mutex_encontrado)
+	{
+		if (strcmp(nombre, sis_lista_mutex[i].nombre) == 0)
+		{
+			mutex_encontrado = 1;
+		}
+		else{
+			i++;
+		}
+	}
+	if(mutex_encontrado = 0)
+	{
+		print("Error: nombre no válido");
+		return -1;
+	}
+
+	
 }
 
 int sis_lockMutex(){
