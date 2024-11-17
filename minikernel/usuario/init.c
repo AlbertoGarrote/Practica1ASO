@@ -46,14 +46,14 @@ ALGO COMENTE ESTA PARTE Y DESCOMENTE LA PRUEBA CORRESPONDIENTE */
 /* FIN PRUEBA INICIAL */
 
  //PRUEBA DE LA LLAMADA OBTENER_ID_PR
- 
+ /*
 {
         int i;
         for (i=1; i<=2; i++)
                 if (crear_proceso("yosoy")<0)
                         printf("Error creando yosoy\n");
 }
-
+*/
 
 /*
  //PRUEBA DE LA LLAMADA DORMIR
@@ -61,15 +61,15 @@ ALGO COMENTE ESTA PARTE Y DESCOMENTE LA PRUEBA CORRESPONDIENTE */
 		printf("Error creando prueba_dormir\n");
 */
 
-/* PRIMERA PRUEBA DE MUTEX
+//PRIMERA PRUEBA DE MUTEX
+/*
 	if (crear_proceso("prueba_mutex1")<0)
 		printf("Error creando prueba_mutex1\n");
 */
 
-/* SEGUNDA PRUEBA DE MUTEX
 	if (crear_proceso("prueba_mutex2")<0)
 		printf("Error creando prueba_mutex2\n");
-*/
+
 
 /* PRIMERA PRUEBA DE ROUND-ROBIN
 	if (crear_proceso("prueba_RR1")<0)

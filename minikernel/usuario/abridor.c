@@ -1,9 +1,9 @@
 /*
  * usuario/abridor.c
  *
- *  Minikernel. Versión 1.0
+ *  Minikernel. Versiï¿½n 1.0
  *
- *  Fernando Pérez Costoya
+ *  Fernando Pï¿½rez Costoya
  *
  */
 
@@ -45,7 +45,7 @@ int main(){
 	/* Agotado num mutex del sistema. Debe bloquearse */
 	if (crear_mutex("m17", 0)<0)
 		printf("error creando m17. NO DEBE SALIR\n");
-	/* se desbloqueará cuando se elimine m1 */
+	/* se desbloquearï¿½ cuando se elimine m1 */
 
 	/* intenta crear el mismo mutex: devuelve un error porque ya existe */
 	if (crear_mutex("m17", 0)<0)

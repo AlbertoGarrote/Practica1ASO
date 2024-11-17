@@ -257,11 +257,12 @@ static void tratar_llamsis(){
 static void int_sw(){
 
 	printk("-> TRATANDO INT. SW\n");
+	
 	if (p_proc_a_expulsar == p_proc_actual)
 	{
 		BCP* proceso_A = p_proc_actual;
 		BCP* proceso_B;
-		int nivel = fijar_nivel_int(1);
+		int nivel = fijar_nivel_int(NIVEL_1);
 
 		eliminar_elem(&lista_listos, proceso_A);
 		insertar_ultimo(&lista_listos, proceso_A);
@@ -275,6 +276,7 @@ static void int_sw(){
 
 		fijar_nivel_int(nivel);
 	}
+	
 	return;
 }
 
@@ -424,17 +426,12 @@ int sis_crearMutex(){
 	char* nombre = (char*)leer_registro(1);
 	int tipo = (int) leer_registro(2);
 
-	int nivel = fijar_nivel_int(NIVEL_1);
-
-
-
-
-
+	int nivel = fijar_nivel_int(NIVEL_3);
 
 	//COMPROBAR QUE EL NOMBRE ES VALIDO
 	if(strlen(nombre) > MAX_NOM_MUT)
 	{
-		printf("Error: el nombre supera la longitud maxima");
+		printf("Error: el nombre supera la longitud maxima\n");
 		fijar_nivel_int(nivel);
 		return -1;
 	}
@@ -444,12 +441,12 @@ int sis_crearMutex(){
 	{
 		if((strcmp(nombre, sis_lista_mutex[i].nombre)) == 0)
 		{
-			printf("Error: el nombre ya esta en uso");
+			printf("Error: el nombre ya esta en uso\n");
 			fijar_nivel_int(nivel);
 			return -2;
 		}
 	}
-
+	
 	//COMPROBAR QUE HAY HUECO EN LA LISTA DE DESRIPTORES
 	int descriptor_libre_encontrado = 0;
 	int posicion_descriptor_libre = -1;
@@ -470,38 +467,54 @@ int sis_crearMutex(){
 		}
 	}else
 	{
-		printf("Error: no hay hueco en la lista de descriptores");
+		printf("Error: no hay hueco en la lista de descriptores \n");
 		fijar_nivel_int(nivel);
 		return -3;
 	}
-
+	
 		//COMPROBAR QUE HAY MUTEX LIBRES
 	int mutex_libre_encontrado = 0;
 	int posicion_mutex_libre = -1;
-	int i = 0;
-	while(mutex_libre_encontrado == 0 && i < NUM_MUT)
+	int j = 0;
+	while(mutex_libre_encontrado == 0 && j < NUM_MUT)
 	{
-		if (sis_lista_mutex[i].estado == LIBRE)
+		if (sis_lista_mutex[j].estado == LIBRE)
 		{
+			//printf("encotrado %d\n", j);
+			
 			mutex_libre_encontrado = 1;
-			posicion_mutex_libre = i;
+			posicion_mutex_libre = j;
 		}
 		else{
-			i++;
+			j++;
 		}
 	}
-	if (mutex_libre_encontrado != 1)
+	//printf(" %d\n", j);
+
+	if(mutex_libre_encontrado != 1)
 	{
 		//SI NO HAY MUTEX LIBRE, BLOQUEA EL PROCESO
+		/*
 		BCP* proc_a_bloquear = p_proc_actual;
 		proc_a_bloquear->estado = BLOQUEADO;
 		eliminar_primero(&lista_listos);
 		insertar_ultimo(&lista_bloqueados_mutex, proc_a_bloquear);
 		p_proc_actual = planificador();
 		cambio_contexto(&(p_proc_a_expulsar->contexto_regs), &(p_proc_actual->contexto_regs));
-		printf("Error: no hay mutex libres");
-		fijar_nivel_int(nivel);
+		printf("Error: no hay mutex libres \n");
+	
+		fijar_nivel_int(nivel);s
 		return -4;
+		*/
+		printf("bloquear proc mutex");
+		BCP* proc_a_bloquear = p_proc_actual;
+		proc_a_bloquear->estado = BLOQUEADO;
+
+		eliminar_primero(&lista_listos);
+		insertar_ultimo(&lista_bloqueados_mutex, proc_a_bloquear);
+
+		p_proc_actual = planificador();
+		cambio_contexto(&(proc_a_bloquear->contexto_regs), &(p_proc_actual->contexto_regs));
 	}
 
 	Mutex * mutex_a_crear = &(sis_lista_mutex[posicion_mutex_libre]);
@@ -509,8 +522,8 @@ int sis_crearMutex(){
 	mutex_a_crear->tipo = tipo;
 	mutex_a_crear->num_bloqueos = 0;
 	mutex_a_crear->estado = OCUPADO;
-	mutex_a_crear->num_procesos_bloqueados  = 0;
-	mutex_a_crear->id_proc = p_proc_actual->id;
+	mutex_a_crear->num_procesos_esperando = 0;
+	mutex_a_crear->proc_mut = NULL;
 
 	//ABRIMOS EL MUTEX QUE ACABAMOS DE CREAR
 	escribir_registro(1, (long) nombre);
@@ -522,39 +535,246 @@ int sis_crearMutex(){
 }
 
 int sis_abrirMutex(){
-	char * nombre  = leer_registro(1);
+
+	char * nombre  = (char*)leer_registro(1);
+	int nivel = fijar_nivel_int(NIVEL_3);
 
 	//COMPROBAR SI EL NOMBRE EXISTE
 	int i = 0;
 	int mutex_encontrado = 0;
-	while(i < NUM_MUT && mutex_encontrado)
+	int posicion_mutex_libre = -1;
+	
+	while(i < NUM_MUT && mutex_encontrado == 0)
 	{
 		if (strcmp(nombre, sis_lista_mutex[i].nombre) == 0)
 		{
 			mutex_encontrado = 1;
+			posicion_mutex_libre = i;
 		}
 		else{
 			i++;
 		}
 	}
-	if(mutex_encontrado = 0)
+	if(mutex_encontrado == 0)
 	{
-		print("Error: nombre no válido");
+		printf("Error: nombre no válido \n");
+		fijar_nivel_int(nivel);
 		return -1;
 	}
 
-	
+	//COMPROBAR SI HAY ALGÚN DESCRIPTOR LIBRE
+	i = 0;
+	int descriptor_libre_encontrado = 0;
+	int posicion_descriptor_libre;
+
+	while(i < NUM_MUT_PROC && descriptor_libre_encontrado == 0)
+	{
+		if (p_proc_actual->descriptores[i] == -1)
+		{
+			descriptor_libre_encontrado = 1;
+			posicion_descriptor_libre = i;
+		}
+		else{
+			i++;
+		}
+	}
+
+	if(descriptor_libre_encontrado == 0)
+	{
+		printf("Error: no hay descriptor libre \n");
+		fijar_nivel_int(nivel);
+		return -2;
+	}
+
+	// SI HAY DESCRIPTOR SE ABRE EL MUTEX
+	else
+	{
+		p_proc_actual->descriptores[posicion_descriptor_libre] = posicion_mutex_libre;
+		p_proc_actual->descriptores_abiertos++;
+
+		printf("Mutex abierto\n");
+		fijar_nivel_int(nivel);
+		return posicion_descriptor_libre;
+	}
 }
 
 int sis_lockMutex(){
-	return 0;
+
+	unsigned int mutex_id = (unsigned int) leer_registro(1);
+	int nivel = fijar_nivel_int(NIVEL_3);
+	int posicion_mutex = p_proc_actual->descriptores[mutex_id];
+
+	// COMPROBAR SI EL MUTEX EXISTE
+	if(posicion_mutex == -1)
+	{
+		printf("Error: el mutex no existe. Fallo en el lock.\n");
+		fijar_nivel_int(nivel);
+		return -1;
+	}
+
+	// SI EL MUTEX YA ESTÁ BLOQUEADO EL PROCESO PASA A ESTAR BLOQUEADO
+	if(sis_lista_mutex[posicion_mutex].proc_mut != p_proc_actual && sis_lista_mutex[posicion_mutex].proc_mut != NULL)
+	{
+		printf("El mutex se encuentra bloqueado, esperando...\n");
+
+		BCP * proc_A = p_proc_actual;
+		proc_A->estado = BLOQUEADO;
+
+		eliminar_elem(&lista_listos, proc_A);
+		insertar_ultimo(&(sis_lista_mutex[posicion_mutex].lista_espera), proc_A);
+		sis_lista_mutex[posicion_mutex].num_procesos_esperando++;
+
+		p_proc_actual = planificador();
+
+		cambio_contexto(&(proc_A->contexto_regs), &(p_proc_actual->contexto_regs));
+		fijar_nivel_int(nivel);
+	}
+
+	// SI NO ESTÁ BLOQUEADO POR NINGÚN OTRO PROCESO SE BLOQUEA Y SE GUARDA EL PROCESO QUE LO HA BLOQUEADO
+	else if(sis_lista_mutex[posicion_mutex].proc_mut == NULL)
+	{
+		sis_lista_mutex[posicion_mutex].proc_mut = p_proc_actual;
+		sis_lista_mutex[posicion_mutex].num_bloqueos++;
+		printf("Mutex bloqueado\n");
+		fijar_nivel_int(nivel);
+		return 0;
+	}
+
+	// CASO EN EL QUE EL MISMO PROCESO BLOQUEA DE NUEVO EL MUTEX
+	else 
+	{
+		// SI NO ES RECURSIVO SALTARÁ UN ERROR PARA EVITAR UN INTERBLOQUEO
+		if(sis_lista_mutex[posicion_mutex].num_bloqueos == 1 && sis_lista_mutex[posicion_mutex].tipo == NO_RECURSIVO)
+		{
+			printf("Error: interbloqueo de mutex no recursivo\n");
+			fijar_nivel_int(nivel);
+			return -2;
+		}
+		// EN EL CASO DE QUE SEA RECURSIVO SE ACTUALIZA LA VARIABLE CORRESPONDIENTE
+		else
+		{
+			sis_lista_mutex[posicion_mutex].num_bloqueos++;
+			printf("Nuevo bloqueo en mutex recursivo. Número total de bloqueos: %d\n", sis_lista_mutex[posicion_mutex].num_bloqueos);
+			fijar_nivel_int(nivel);
+			return 0;
+		}
+	}
 }
 
 int sis_unlockMutex(){
-	return 0;
+
+	unsigned int mutex_id = (unsigned int) leer_registro(1);
+	int nivel = fijar_nivel_int(NIVEL_3);
+	int posicion_mutex = p_proc_actual->descriptores[mutex_id];
+
+	if(posicion_mutex == -1)
+	{
+		printf("Error: el mutex no existe. Fallo en el unlock.\n");
+		fijar_nivel_int(nivel);
+		return -1;
+	}
+
+	if(sis_lista_mutex[posicion_mutex].proc_mut != p_proc_actual)
+	{
+		printf("Error: se intentó desbloquear un mutex que fue bloqueado por otro proceso\n");
+		fijar_nivel_int(nivel);
+		return -2;
+	}
+
+	//DESBLOQUEAR MUTEX
+	sis_lista_mutex[posicion_mutex].num_bloqueos--;
+
+	if(sis_lista_mutex[posicion_mutex].num_bloqueos != 0)
+	{
+		//SE DESBLOQUEA UNA VEZ UN MUTEX RECURSIVO QUE HAY QUE DESBLOQUEAR MAS VECES
+		printf("Bloqueos restantes: %d", sis_lista_mutex[posicion_mutex].num_bloqueos);
+		fijar_nivel_int(nivel);
+		return 0;
+	}
+	else
+	{
+		printf("desbloqueando..\n");
+		sis_lista_mutex[posicion_mutex].proc_mut=NULL;
+		if(sis_lista_mutex[posicion_mutex].lista_espera.primero != NULL)
+		{
+			BCP* aux = sis_lista_mutex[posicion_mutex].lista_espera.primero;
+			aux->estado = LISTO;
+			eliminar_primero(&(sis_lista_mutex[posicion_mutex].lista_espera));
+			insertar_ultimo(&lista_listos, aux);
+
+			sis_lista_mutex[posicion_mutex].proc_mut = aux;
+			
+		}
+		fijar_nivel_int(nivel);
+		return 0;
+	}
 }
 
 int sis_cerrarMutex(){
+
+	unsigned int mutex_id = (unsigned int) leer_registro(1);
+	int nivel = fijar_nivel_int(NIVEL_3);
+	int posicion_mutex = p_proc_actual->descriptores[mutex_id];
+
+	if(posicion_mutex == -1)
+	{
+		printf("Error: el mutex no existe. Fallo en el unlock.\n");
+		fijar_nivel_int(nivel);
+		return -1;
+	}
+
+	//DESBLOQUEAR EL MUTEX
+	printf("Numero de bloqueos de %s: %d\n", sis_lista_mutex[mutex_id].nombre, sis_lista_mutex[mutex_id].num_bloqueos);
+	if(sis_lista_mutex[mutex_id].num_bloqueos > 0)
+	{
+		printf("Cerrando un mutex lockeado: %s\n", sis_lista_mutex[mutex_id].nombre);
+		if(sis_lista_mutex[mutex_id].proc_mut == p_proc_actual)
+		{
+			printf("El proceso que lockeo  el mutex lo ha cerrado\n");
+			while(sis_lista_mutex[mutex_id].num_bloqueos > 0)
+				{
+					printf("Desbloqueos restantes: %d\n", sis_lista_mutex[mutex_id].num_bloqueos);
+					escribir_registro(1, mutex_id);
+					sis_unlockMutex();
+				}				
+		}else
+		{
+			sis_lista_mutex[mutex_id].estado = LIBRE;
+			p_proc_actual->descriptores[mutex_id] = -1;
+			p_proc_actual->descriptores_abiertos--;
+
+			if(lista_bloqueados_mutex.primero!= NULL)
+			{
+				BCP* proc = lista_bloqueados_mutex.primero;
+				proc->estado = LISTO;
+				eliminar_primero(&lista_bloqueados_mutex);
+				insertar_ultimo(&lista_listos, proc);
+				
+			}
+			fijar_nivel_int(nivel);
+			printf("Mutex %s cerrado\n", sis_lista_mutex[posicion_mutex].nombre);
+			return 0;
+		}
+		
+	}
+	sis_lista_mutex[posicion_mutex].estado = LIBRE;
+	sis_lista_mutex[posicion_mutex].proc_mut = NULL;
+	sis_lista_mutex[posicion_mutex].num_procesos_esperando = 0;
+	
+	p_proc_actual->descriptores[mutex_id] = -1;
+	p_proc_actual->descriptores_abiertos--;
+
+	if(lista_bloqueados_mutex.primero!= NULL)
+	{
+		BCP* proc = lista_bloqueados_mutex.primero;
+		proc->estado = LISTO;
+		eliminar_primero(&lista_bloqueados_mutex);
+		insertar_ultimo(&lista_listos, proc);
+		
+	}
+
+	fijar_nivel_int(nivel);
+	printf("Mutex %s cerrado\n", sis_lista_mutex[posicion_mutex].nombre);
 	return 0;
 }
 
@@ -565,6 +785,16 @@ int sis_cerrarMutex(){
  */
 int main(){
 	/* se llega con las interrupciones prohibidas */
+
+	/* inicializar mutex */
+	for(int i = 0; i < NUM_MUT; i++)
+	{
+		//printf("mutex inicializado %d\n", i);
+		sis_lista_mutex[i].estado = LIBRE;
+		sis_lista_mutex[i].proc_mut = NULL;
+		sis_lista_mutex[i].num_procesos_esperando = 0;
+		sis_lista_mutex[i].num_bloqueos = 0;
+	}
 
 	instal_man_int(EXC_ARITM, exc_arit); 
 	instal_man_int(EXC_MEM, exc_mem); 
@@ -587,5 +817,6 @@ int main(){
 	p_proc_actual=planificador();
 	cambio_contexto(NULL, &(p_proc_actual->contexto_regs));
 	panico("S.O. reactivado inesperadamente");
+	
 	return 0;
 }

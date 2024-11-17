@@ -62,10 +62,10 @@ typedef struct Mutex_t{
 	char nombre[MAX_NOM_MUT];
 	int estado;
 	int num_bloqueos;
-	int num_procesos_bloqueados;
+	int num_procesos_esperando;
 	lista_BCPs lista_espera;
-	int id_proc;
-	int proc_abiertos;
+	BCP * proc_mut;
+	//int proc_abiertos;
 } Mutex;
 
 /*
